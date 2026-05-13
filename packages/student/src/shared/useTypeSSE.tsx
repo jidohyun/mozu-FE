@@ -58,6 +58,14 @@ export const useTypeSSE = (
   const [isConnecting, setIsConnecting] = useState(true);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [reconnectFailed, setReconnectFailed] = useState(false);
+
+  const settledTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const MAX_RETRY = 10;
+  const BASE_DELAY = 1000;
+  const MAX_DELAY = 30_000;
+  const SETTLED_AFTER = 5_000;
 
   useEffect(() => {
     const handleTokenChange = (e: Event) => {
@@ -90,7 +98,14 @@ export const useTypeSSE = (
     if (!url || !token) return;
 
     const currentRetryCount = retryCountRef.current;
-    console.log(`[SSE] 재연결 시도 중... (시도 ${currentRetryCount + 1})`);
+    if (currentRetryCount >= MAX_RETRY) {
+      console.error(`[SSE] 최대 재시도 횟수(${MAX_RETRY}) 초과 — 자동 재연결 중단`);
+      setReconnectFailed(true);
+      setIsReconnecting(false);
+      return;
+    }
+
+    console.log(`[SSE] 재연결 시도 중... (시도 ${currentRetryCount + 1}/${MAX_RETRY})`);
     setIsReconnecting(true);
 
     if (eventSourceRef.current) {
@@ -98,7 +113,20 @@ export const useTypeSSE = (
       eventSourceRef.current = null;
     }
 
-    const delay = Math.min(1000 * 2 ** currentRetryCount, 30000);
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      console.log("[SSE] 오프라인 — online 이벤트 대기");
+      const onOnline = () => {
+        window.removeEventListener("online", onOnline);
+        setRetryCount(prev => prev + 1);
+      };
+      window.addEventListener("online", onOnline);
+      return;
+    }
+
+    const base = Math.min(BASE_DELAY * 2 ** currentRetryCount, MAX_DELAY);
+    const hiddenMultiplier = typeof document !== "undefined" && document.hidden ? 2 : 1;
+    const jitter = 1 + Math.random() * 0.3;
+    const delay = Math.min(base * hiddenMultiplier * jitter, MAX_DELAY * 2);
 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -139,13 +167,23 @@ export const useTypeSSE = (
 
     eventSourceRef.current = eventSource;
 
+    const markSettled = () => {
+      if (settledTimerRef.current) {
+        clearTimeout(settledTimerRef.current);
+      }
+      settledTimerRef.current = setTimeout(() => {
+        setRetryCount(0);
+        setReconnectFailed(false);
+      }, SETTLED_AFTER);
+    };
+
     // SSE 연결 성공
     eventSource.onopen = () => {
       console.log("[SSE] 연결 성공");
       setIsConnected(true);
       setIsConnecting(false);
       setIsReconnecting(false);
-      setRetryCount(0);
+      markSettled();
     };
 
     // SSE 연결 오류
@@ -154,20 +192,9 @@ export const useTypeSSE = (
       setIsConnected(false);
       setIsConnecting(false);
 
-      // ref를 사용하여 최신 상태 확인
       const isInitialFailure = retryCountRef.current === 0 && !isConnectedRef.current;
-
-      if (isInitialFailure) {
-        // 처음 연결 실패 - 리다이렉트
-        console.error("[SSE] 초기 연결 실패, 로그인 페이지로 이동");
-        onErrorRef.current?.(err, true);
-        navigate("/signin");
-      } else {
-        // 연결 후 끊김 - 재연결 시도
-        console.log("[SSE] 연결 끊김, 재연결 시도");
-        onErrorRef.current?.(err, false);
-        attemptReconnect();
-      }
+      onErrorRef.current?.(err, isInitialFailure);
+      attemptReconnect();
     };
 
     eventSource.onmessage = e => {
@@ -190,7 +217,7 @@ export const useTypeSSE = (
         setIsConnected(true);
         setIsConnecting(false);
         setIsReconnecting(false);
-        setRetryCount(0);
+        markSettled();
         eventHandlersRef.current?.TEAM_SSE_CONNECTED?.(eventData);
       } catch (err) {
         console.error("[SSE] TEAM_SSE_CONNECTED 파싱 오류:", err);
@@ -267,6 +294,10 @@ export const useTypeSSE = (
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
+    if (settledTimerRef.current) {
+      clearTimeout(settledTimerRef.current);
+      settledTimerRef.current = null;
+    }
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
@@ -274,6 +305,12 @@ export const useTypeSSE = (
     setIsConnected(false);
     setIsConnecting(false);
     setIsReconnecting(false);
+    setRetryCount(0);
+    setReconnectFailed(false);
+  }, []);
+
+  const retryNow = useCallback(() => {
+    setReconnectFailed(false);
     setRetryCount(0);
   }, []);
 
@@ -283,5 +320,7 @@ export const useTypeSSE = (
     isConnecting,
     isReconnecting,
     retryCount,
+    reconnectFailed,
+    retryNow,
   };
 };
