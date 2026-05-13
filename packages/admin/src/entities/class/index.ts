@@ -13,6 +13,7 @@ export {
   useGetClassDetail,
   useGetClassItems,
   useGetClassList,
+  useGetLessonRoundStatus,
   useGetParticipatingTeams,
 } from "./model/queries";
-export type { ParticipatingTeam } from "./api";
+export type { ParticipatingTeam, RoundSnapshotEntry, RoundStatus } from "./api";

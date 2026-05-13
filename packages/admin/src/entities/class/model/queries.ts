@@ -4,8 +4,10 @@ import {
   getLessonDetail,
   getLessonItemList,
   getLessonList,
+  getLessonRoundStatus,
   getParticipatingTeams,
   type ParticipatingTeam,
+  type RoundStatus,
 } from "../api";
 import type {
   LessonGetArticleListResponse,
@@ -76,6 +78,19 @@ export const useGetParticipatingTeams = (id?: string, enabled = true) =>
       id,
     ],
     queryFn: () => getParticipatingTeams(id!),
+    enabled: !!id && enabled,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
+
+export const useGetLessonRoundStatus = (id?: string, enabled = true) =>
+  useQuery<RoundStatus[]>({
+    queryKey: [
+      "roundStatus",
+      id,
+    ],
+    queryFn: () => getLessonRoundStatus(id!),
     enabled: !!id && enabled,
     refetchInterval: 10_000,
     refetchOnWindowFocus: true,

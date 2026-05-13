@@ -143,3 +143,26 @@ export const getParticipatingTeams = async (id: string): Promise<ParticipatingTe
   const { data } = await instance.get(`${router}/${id}/teams`);
   return data;
 };
+
+export type RoundSnapshotEntry = {
+  round: number;
+  totalMoney: number;
+  cashMoney: number;
+  valuationMoney: number;
+  profitNum: number;
+  endedAt: string;
+};
+
+export type RoundStatus = {
+  teamId: string;
+  teamName: string;
+  schoolName: string;
+  isInvestmentInProgress: boolean;
+  currentRound: number;
+  snapshots: RoundSnapshotEntry[];
+};
+
+export const getLessonRoundStatus = async (id: string): Promise<RoundStatus[]> => {
+  const { data } = await instance.get(`${router}/${id}/round-status`);
+  return data;
+};

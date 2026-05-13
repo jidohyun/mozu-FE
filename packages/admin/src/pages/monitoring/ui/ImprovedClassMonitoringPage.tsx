@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Tooltip } from "react-tooltip";
 import { useTeamStore } from "@/app";
-import { useEndClass, useGetParticipatingTeams } from "@/entities/class";
+import { useEndClass, useGetLessonRoundStatus } from "@/entities/class";
 import { ArticleInfoModal, ClassInfoModal, ImprovedTeamInfoTable } from "@/features/monitoring";
 import { useSSE } from "@/shared/lib/contexts/SSEContext";
 import { useInvestmentProgress } from "@/shared/lib/hooks";
@@ -22,7 +22,7 @@ export const ImprovedClassMonitoringPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { teamInfoMap, appendTrade, setTeamInfo } = useTeamStore();
+  const { teamInfoMap, setTeamInfo } = useTeamStore();
   const teamInfo = Object.values(teamInfoMap);
 
   const { classData, currentInvDeg, isLoading, isLastDegree, isProgressing, progressToNextDegree } =
@@ -31,47 +31,29 @@ export const ImprovedClassMonitoringPage = () => {
   // SSE 상태 사용
   const { isReconnecting, retryCount, lastData } = useSSE();
 
-  // SSE 손실 백업: 10초마다 BE에서 참여 팀 상태 폴링하여 누락된 종료 이벤트 흡수
-  const { data: participatingTeams } = useGetParticipatingTeams(id);
+  // BE 영속 round snapshot이 truth. 10초 폴링으로 zustand에 hydrate.
+  // SSE는 즉시 알림 hint (TEAM_INV_END 받으면 polling invalidate).
+  const { data: roundStatus, refetch: refetchRoundStatus } = useGetLessonRoundStatus(id);
 
   useEffect(() => {
-    if (!participatingTeams || !classData) return;
-    const baseMoney = classData.baseMoney ?? 0;
-    for (const t of participatingTeams) {
-      const existing = teamInfoMap[t.teamId];
-      if (!existing) {
-        setTeamInfo({
-          teamId: t.teamId,
-          teamName: t.teamName,
-          schoolName: t.schoolName,
-          trade: [],
-        });
-      }
-      // 폴링: 종료된 팀(isInvestmentInProgress=false)의 trade 길이가 부족하면 보강
-      if (!t.isInvestmentInProgress) {
-        const tradeLen = teamInfoMap[t.teamId]?.trade?.length ?? 0;
-        const target = currentInvDeg;
-        if (tradeLen < target) {
-          const profitNum = baseMoney > 0
-            ? (((t.totalMoney - baseMoney) / baseMoney) * 100).toFixed(2)
-            : "0";
-          for (let i = tradeLen; i < target; i++) {
-            appendTrade(t.teamId, {
-              totalMoney: t.totalMoney,
-              valMoney: t.valuationMoney,
-              profitNum,
-            });
-          }
-        }
-      }
+    if (!roundStatus) return;
+    for (const team of roundStatus) {
+      // 모든 round snapshot을 trade[] 배열에 그대로 hydrate
+      // (round 순서 정렬은 BE에서 보장)
+      setTeamInfo({
+        teamId: team.teamId,
+        teamName: team.teamName,
+        schoolName: team.schoolName,
+        trade: team.snapshots.map(s => ({
+          totalMoney: s.totalMoney,
+          valMoney: s.valuationMoney,
+          profitNum: s.profitNum.toFixed(2),
+        })),
+      });
     }
   }, [
-    participatingTeams,
-    classData,
-    currentInvDeg,
-    teamInfoMap,
+    roundStatus,
     setTeamInfo,
-    appendTrade,
   ]);
 
   const endClass = useEndClass(id, () => {
@@ -105,23 +87,12 @@ export const ImprovedClassMonitoringPage = () => {
           return;
         }
 
-        console.log("🔍 [DEBUG] 팀 투자 종료:", {
-          teamId: lastData.teamId,
-          teamName: lastData.teamName,
-          totalMoney: lastData.totalMoney,
-          valuationMoney: lastData.valuationMoney,
-          profitNum: lastData.profitNum,
-        });
-
         Toast(`${lastData.teamName}팀의 투자가 종료되었습니다!`, {
           type: "success",
         });
 
-        appendTrade(lastData.teamId, {
-          totalMoney: lastData.totalMoney as number,
-          valMoney: lastData.valuationMoney as number,
-          profitNum: lastData.profitNum as string,
-        });
+        // BE 영속 snapshot을 즉시 refetch (truth source)
+        refetchRoundStatus();
         break;
 
       case "CLASS_NEXT_INV_START":
@@ -149,8 +120,8 @@ export const ImprovedClassMonitoringPage = () => {
     }
   }, [
     lastData,
-    appendTrade,
     queryClient,
+    refetchRoundStatus,
   ]);
 
   // 모든 팀이 현재 차수 투자를 완료했는지 확인
