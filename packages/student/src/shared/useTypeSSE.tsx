@@ -56,9 +56,10 @@ export const useTypeSSE = (
 
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
-  const [isReconnecting, setIsReconnecting] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [reconnectFailed, setReconnectFailed] = useState(false);
+  // isReconnecting은 derived: 재시도 카운트 > 0 이고 아직 연결 안 됐을 때만 true
+  const isReconnecting = retryCount > 0 && !isConnected && !reconnectFailed;
 
   const settledTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -101,12 +102,10 @@ export const useTypeSSE = (
     if (currentRetryCount >= MAX_RETRY) {
       console.error(`[SSE] 최대 재시도 횟수(${MAX_RETRY}) 초과 — 자동 재연결 중단`);
       setReconnectFailed(true);
-      setIsReconnecting(false);
       return;
     }
 
     console.log(`[SSE] 재연결 시도 중... (시도 ${currentRetryCount + 1}/${MAX_RETRY})`);
-    setIsReconnecting(true);
 
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
@@ -158,7 +157,6 @@ export const useTypeSSE = (
     }
 
     setIsConnecting(true);
-    setIsReconnecting(false);
 
     const eventSource = new EventSourcePolyfill(url, {
       headers: headers,
@@ -182,7 +180,6 @@ export const useTypeSSE = (
       console.log("[SSE] 연결 성공");
       setIsConnected(true);
       setIsConnecting(false);
-      setIsReconnecting(false);
       markSettled();
     };
 
@@ -216,7 +213,6 @@ export const useTypeSSE = (
         console.log("[SSE] TEAM_SSE_CONNECTED 수신:", eventData);
         setIsConnected(true);
         setIsConnecting(false);
-        setIsReconnecting(false);
         markSettled();
         eventHandlersRef.current?.TEAM_SSE_CONNECTED?.(eventData);
       } catch (err) {
@@ -273,7 +269,6 @@ export const useTypeSSE = (
       eventSourceRef.current = null;
       setIsConnected(false);
       setIsConnecting(false);
-      setIsReconnecting(false);
     };
   }, [
     setupConnection,
@@ -304,7 +299,6 @@ export const useTypeSSE = (
     }
     setIsConnected(false);
     setIsConnecting(false);
-    setIsReconnecting(false);
     setRetryCount(0);
     setReconnectFailed(false);
   }, []);
