@@ -1,5 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { getLessonArticleList, getLessonDetail, getLessonItemList, getLessonList } from "../api";
+import {
+  getLessonArticleList,
+  getLessonDetail,
+  getLessonItemList,
+  getLessonList,
+  getParticipatingTeams,
+  type ParticipatingTeam,
+} from "../api";
 import type {
   LessonGetArticleListResponse,
   LessonGetDetailResponse,
@@ -60,4 +67,17 @@ export const useGetClassArticles = (id: string) =>
       id,
     ],
     queryFn: () => getLessonArticleList(id),
+  });
+
+export const useGetParticipatingTeams = (id?: string, enabled = true) =>
+  useQuery<ParticipatingTeam[]>({
+    queryKey: [
+      "participatingTeams",
+      id,
+    ],
+    queryFn: () => getParticipatingTeams(id!),
+    enabled: !!id && enabled,
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });

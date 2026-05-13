@@ -4,7 +4,12 @@ import { Button, Modal, SvgIcon, Toast, WarningMsg } from "@mozu/ui";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTeamStore } from "@/app";
-import { useEndClass as useClassStop, useGetClassDetail, useStartDegree } from "@/entities/class";
+import {
+  useEndClass as useClassStop,
+  useGetClassDetail,
+  useGetParticipatingTeams,
+  useStartDegree,
+} from "@/entities/class";
 import { ParticipationContainer } from "@/features/monitoring";
 import { useSSE } from "@/shared/lib/contexts/SSEContext";
 import { SSELoadingSpinner } from "@/shared/ui";
@@ -40,6 +45,27 @@ export const InvestmentPreparation = () => {
 
   const { isReconnecting, retryCount, lastData } = useSSE();
 
+  // SSE 손실 백업: 10초마다 BE에서 참여 팀 목록 폴링하여 누락 흡수
+  const { data: participatingTeams } = useGetParticipatingTeams(id);
+
+  useEffect(() => {
+    if (!participatingTeams) return;
+    setDatas({
+      teams: participatingTeams.map(t => ({ title: t.teamName, school: t.schoolName })),
+    });
+    for (const t of participatingTeams) {
+      setTeamInfo({
+        teamId: t.teamId,
+        teamName: t.teamName,
+        schoolName: t.schoolName,
+        trade: [],
+      });
+    }
+  }, [
+    participatingTeams,
+    setTeamInfo,
+  ]);
+
   // SSE 이벤트 처리
   useEffect(() => {
     if (!lastData) return;
@@ -57,28 +83,13 @@ export const InvestmentPreparation = () => {
           return;
         }
 
-        // 팀 데이터 업데이트
-        setDatas(prev => ({
-          ...prev,
-          teams: [
-            ...(prev?.teams || []),
-            {
-              title: lastData.teamName || "",
-              school: lastData.schoolName || "",
-            },
-          ],
-        }));
-
-        // 팀 정보 저장
-        const teamInfo = {
+        // 폴링이 truth source. SSE는 즉시 알림 + store 미리채움.
+        setTeamInfo({
           teamId: lastData.teamId,
           teamName: lastData.teamName,
           schoolName: lastData.schoolName,
           trade: [],
-        };
-
-        console.log("🔍 [DEBUG] 팀 정보 저장:", teamInfo);
-        setTeamInfo(teamInfo);
+        });
 
         Toast(`${lastData.teamName}이 참가했습니다`, {
           type: "success",

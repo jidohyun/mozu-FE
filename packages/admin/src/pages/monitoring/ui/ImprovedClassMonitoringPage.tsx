@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Tooltip } from "react-tooltip";
 import { useTeamStore } from "@/app";
-import { useEndClass } from "@/entities/class";
+import { useEndClass, useGetParticipatingTeams } from "@/entities/class";
 import { ArticleInfoModal, ClassInfoModal, ImprovedTeamInfoTable } from "@/features/monitoring";
 import { useSSE } from "@/shared/lib/contexts/SSEContext";
 import { useInvestmentProgress } from "@/shared/lib/hooks";
@@ -22,7 +22,7 @@ export const ImprovedClassMonitoringPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { teamInfoMap, appendTrade } = useTeamStore();
+  const { teamInfoMap, appendTrade, setTeamInfo } = useTeamStore();
   const teamInfo = Object.values(teamInfoMap);
 
   const { classData, currentInvDeg, isLoading, isLastDegree, isProgressing, progressToNextDegree } =
@@ -30,6 +30,49 @@ export const ImprovedClassMonitoringPage = () => {
 
   // SSE 상태 사용
   const { isReconnecting, retryCount, lastData } = useSSE();
+
+  // SSE 손실 백업: 10초마다 BE에서 참여 팀 상태 폴링하여 누락된 종료 이벤트 흡수
+  const { data: participatingTeams } = useGetParticipatingTeams(id);
+
+  useEffect(() => {
+    if (!participatingTeams || !classData) return;
+    const baseMoney = classData.baseMoney ?? 0;
+    for (const t of participatingTeams) {
+      const existing = teamInfoMap[t.teamId];
+      if (!existing) {
+        setTeamInfo({
+          teamId: t.teamId,
+          teamName: t.teamName,
+          schoolName: t.schoolName,
+          trade: [],
+        });
+      }
+      // 폴링: 종료된 팀(isInvestmentInProgress=false)의 trade 길이가 부족하면 보강
+      if (!t.isInvestmentInProgress) {
+        const tradeLen = teamInfoMap[t.teamId]?.trade?.length ?? 0;
+        const target = currentInvDeg;
+        if (tradeLen < target) {
+          const profitNum = baseMoney > 0
+            ? (((t.totalMoney - baseMoney) / baseMoney) * 100).toFixed(2)
+            : "0";
+          for (let i = tradeLen; i < target; i++) {
+            appendTrade(t.teamId, {
+              totalMoney: t.totalMoney,
+              valMoney: t.valuationMoney,
+              profitNum,
+            });
+          }
+        }
+      }
+    }
+  }, [
+    participatingTeams,
+    classData,
+    currentInvDeg,
+    teamInfoMap,
+    setTeamInfo,
+    appendTrade,
+  ]);
 
   const endClass = useEndClass(id, () => {
     setIsEndModalOpen(false);

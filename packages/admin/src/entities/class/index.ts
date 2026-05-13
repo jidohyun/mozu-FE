@@ -13,4 +13,6 @@ export {
   useGetClassDetail,
   useGetClassItems,
   useGetClassList,
+  useGetParticipatingTeams,
 } from "./model/queries";
+export type { ParticipatingTeam } from "./api";

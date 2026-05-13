@@ -127,3 +127,19 @@ export const getLessonArticleList = async (id: string): Promise<LessonGetArticle
   const { data } = await instance.get(`${router}/articles/${id}`);
   return data;
 };
+
+export type ParticipatingTeam = {
+  teamId: string;
+  teamName: string;
+  schoolName: string;
+  lessonNum: string;
+  isInvestmentInProgress: boolean;
+  totalMoney: number;
+  cashMoney: number;
+  valuationMoney: number;
+};
+
+export const getParticipatingTeams = async (id: string): Promise<ParticipatingTeam[]> => {
+  const { data } = await instance.get(`${router}/${id}/teams`);
+  return data;
+};
