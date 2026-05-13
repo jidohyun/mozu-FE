@@ -11,6 +11,7 @@ export interface InputProps {
   defaultValue?: string;
   type?: "text" | "password" | "number" | "money";
   autoFocus?: boolean;
+  autoComplete?: string;
   maxLength?: number;
   minLength?: number;
   required?: boolean;

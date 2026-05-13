@@ -88,6 +88,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       defaultValue,
       type = "text",
       autoFocus = false,
+      autoComplete,
       maxLength,
       minLength,
       required = false,
@@ -175,6 +176,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               readOnly={readOnly}
               // biome-ignore lint/a11y/noAutofocus: <임시>
               autoFocus={autoFocus}
+              autoComplete={autoComplete}
               maxLength={maxLength}
               minLength={minLength}
               required={required}
