@@ -22,8 +22,7 @@ export const ImprovedClassMonitoringPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { teamInfoMap, setTeamInfo } = useTeamStore();
-  const teamInfo = Object.values(teamInfoMap);
+  const { teamInfoMap, setTeamInfo, clearTeamInfo } = useTeamStore();
 
   const { classData, currentInvDeg, isLoading, isLastDegree, isProgressing, progressToNextDegree } =
     useInvestmentProgress(id ?? "");
@@ -35,11 +34,17 @@ export const ImprovedClassMonitoringPage = () => {
   // SSE는 즉시 알림 hint (TEAM_INV_END 받으면 polling invalidate).
   const { data: roundStatus, refetch: refetchRoundStatus } = useGetLessonRoundStatus(id);
 
+  // 진입 시 옛 zustand persist localStorage 초기화 (다른 수업/세션의 잔재 차단)
+  useEffect(() => {
+    clearTeamInfo();
+  }, [
+    id,
+    clearTeamInfo,
+  ]);
+
   useEffect(() => {
     if (!roundStatus) return;
     for (const team of roundStatus) {
-      // 모든 round snapshot을 trade[] 배열에 그대로 hydrate
-      // (round 순서 정렬은 BE에서 보장)
       setTeamInfo({
         teamId: team.teamId,
         teamName: team.teamName,
@@ -55,6 +60,9 @@ export const ImprovedClassMonitoringPage = () => {
     roundStatus,
     setTeamInfo,
   ]);
+
+  // teamInfoMap 직접 렌더링은 roundStatus 응답으로만 채워야 (옛 잔재 차단)
+  const teamInfo = (roundStatus ?? []).map(t => teamInfoMap[t.teamId]).filter(Boolean);
 
   const endClass = useEndClass(id, () => {
     setIsEndModalOpen(false);
