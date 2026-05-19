@@ -7,7 +7,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Tooltip } from "react-tooltip";
 import { useTeamStore } from "@/app";
 import { useEndClass, useGetLessonRoundStatus } from "@/entities/class";
-import { ArticleInfoModal, ClassInfoModal, ImprovedTeamInfoTable } from "@/features/monitoring";
+import { ArticleInfoModal, ClassInfoModal, ImprovedTeamInfoTable, MonitoringTimer } from "@/features/monitoring";
 import { useSSE } from "@/shared/lib/contexts/SSEContext";
 import { useInvestmentProgress } from "@/shared/lib/hooks";
 import { FullPageLoader, SSELoadingSpinner } from "@/shared/ui";
@@ -302,6 +302,7 @@ export const ImprovedClassMonitoringPage = () => {
                 기초자산 <span>{classData?.baseMoney.toLocaleString()}</span>원
               </p>
             </ClassInfo>
+            <MonitoringTimer />
             <InfoBtn>
               <Button
                 type={"articleImg"}
