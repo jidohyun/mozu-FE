@@ -333,12 +333,16 @@ const Display = styled.div<{ isLow: boolean }>`
 
 const FsDisplay = styled.div<{ isLow: boolean }>`
   font-variant-numeric: tabular-nums;
-  font-size: clamp(120px, 28vw, 360px);
+  font-size: clamp(96px, 18vw, 240px);
   font-weight: 800;
   line-height: 1;
   color: ${({ isLow }) => (isLow ? color.red[500] : color.zinc[900])};
-  letter-spacing: 4px;
+  letter-spacing: 2px;
   text-align: center;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
 `;
 
 const ControlsRow = styled.div<{ large: boolean }>`
@@ -433,16 +437,20 @@ const Overlay = styled.div`
 
 const FsPanel = styled.div`
   width: min(1100px, 100%);
+  max-width: 100%;
   background-color: ${color.white};
   border-radius: 24px;
-  padding: 48px 64px 56px;
+  padding: 32px 40px 40px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  align-items: center;
+  gap: 24px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 `;
 
 const FsTopBar = styled.div`
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
