@@ -84,7 +84,33 @@ export const useTypeSSE = (
   const eventHandlersRef = useRef(eventHandlers);
   const retryCountRef = useRef(retryCount);
   const isConnectedRef = useRef(isConnected);
-  const lastEventIdRef = useRef<string | null>(null);
+
+  // lastEventId를 localStorage에 url 단위로 영속화 → 새로고침/탭 재진입 후에도 SSE 복구 가능
+  const storageKey = url ? `mozu-sse-last-event-id:${url}` : null;
+  const readStoredLastEventId = (): string | null => {
+    if (!storageKey || typeof window === "undefined") return null;
+    try {
+      return window.localStorage.getItem(storageKey);
+    } catch {
+      return null;
+    }
+  };
+  const writeStoredLastEventId = (value: string | null) => {
+    if (!storageKey || typeof window === "undefined") return;
+    try {
+      if (value) window.localStorage.setItem(storageKey, value);
+      else window.localStorage.removeItem(storageKey);
+    } catch {
+      // localStorage 사용 불가 환경 무시
+    }
+  };
+  const lastEventIdRef = useRef<string | null>(readStoredLastEventId());
+
+  const setLastEventId = (id: string | undefined) => {
+    if (!id) return;
+    lastEventIdRef.current = id;
+    writeStoredLastEventId(id);
+  };
 
   // 최신 값들을 ref에 업데이트
   useEffect(() => {
@@ -197,7 +223,7 @@ export const useTypeSSE = (
     eventSource.onmessage = e => {
       try {
         if (e.lastEventId) {
-          lastEventIdRef.current = e.lastEventId;
+          setLastEventId(e.lastEventId);
         }
         const parsed = JSON.parse(e.data);
         onMessageRef.current?.(parsed);
@@ -230,7 +256,7 @@ export const useTypeSSE = (
           eventSource.addEventListener(eventType, (e: any) => {
             try {
               if (e.lastEventId) {
-                lastEventIdRef.current = e.lastEventId;
+                setLastEventId(e.lastEventId);
               }
               const eventData = JSON.parse(e.data);
               console.log(`[SSE] ${eventType} 수신:`, eventData);
