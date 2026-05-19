@@ -1,6 +1,5 @@
-import { Toast } from "@mozu/ui";
 import { createContext, useContext, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useTypeSSE } from "../hooks/useTypeSSE";
 
 interface SSEEventData {
@@ -28,21 +27,17 @@ interface SSEProviderProps {
 }
 
 export const SSEProvider = ({ children }: SSEProviderProps) => {
-  const navigate = useNavigate();
   const { id } = useParams();
   const [lastData, setLastData] = useState<SSEEventData | null>(null);
 
   const sseUrl = `${import.meta.env.VITE_SERVER_URL}/lesson/sse/${id}`;
 
+  // initial failure 시 redirect 없이 백오프에 맡김 (useTypeSSE가 지수 백오프로 재연결)
   const handleSSEError = (error: unknown, isInitialConnection: boolean) => {
     if (isInitialConnection) {
-      console.error("SSE 초기 연결 실패:", error);
-      Toast("서버 연결에 실패했습니다. 수업 관리 페이지로 이동합니다.", {
-        type: "error",
-      });
-      navigate(-1);
+      console.error("[SSE] 초기 연결 실패 — 백오프로 재연결 시도:", error);
     } else {
-      console.log("SSE 연결 일시적 끊김, 재연결 시도 중...");
+      console.log("[SSE] 연결 일시적 끊김, 재연결 시도 중...");
     }
   };
 
