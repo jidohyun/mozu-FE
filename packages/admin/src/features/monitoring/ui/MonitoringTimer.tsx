@@ -273,19 +273,17 @@ export const MonitoringTimer = () => {
   );
 };
 
-const CARD_HEIGHT = 84;
-
 const Card = styled.div`
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 16px;
-  height: ${CARD_HEIGHT}px;
+  gap: 8px;
+  padding: 12px 16px;
   background-color: ${color.white};
   border: 1px solid ${color.zinc[200]};
   border-radius: 12px;
-  min-width: 280px;
+  width: fit-content;
+  max-width: 360px;
 `;
 
 const CardHeader = styled.div`

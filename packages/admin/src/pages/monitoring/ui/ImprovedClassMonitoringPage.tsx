@@ -302,7 +302,9 @@ export const ImprovedClassMonitoringPage = () => {
                 기초자산 <span>{classData?.baseMoney.toLocaleString()}</span>원
               </p>
             </ClassInfo>
-            <MonitoringTimer />
+            <TimerSlot>
+              <MonitoringTimer />
+            </TimerSlot>
             <InfoBtn>
               <Button
                 type={"articleImg"}
@@ -422,6 +424,8 @@ const MainContainer = styled.div`
 const InfoContainer = styled.div`
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 `;
 
 const ClassInfo = styled.div`
@@ -444,4 +448,11 @@ const ClassInfo = styled.div`
 const InfoBtn = styled.div`
   display: flex;
   gap: 12px;
+  align-items: center;
+`;
+
+const TimerSlot = styled.div`
+  display: flex;
+  align-items: center;
+  align-self: center;
 `;
